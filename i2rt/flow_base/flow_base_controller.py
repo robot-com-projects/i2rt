@@ -667,7 +667,8 @@ class LinearRailVehicle(Vehicle):
                 self.set_linear_rail_velocity(linear_rail_velocity)
         else:
             raise ValueError(
-                f"Velocity must be 3D [x, y, theta] or 4D [x, y, theta, linear_rail_vel], got shape {velocity.shape}"
+                f"Velocity must be 3D [x, y, theta] or 4D [x, y, theta, linear_rail_vel], "
+                f"got shape {velocity.shape}"
             )
 
     def get_linear_rail_state(self, input_dict: Dict[str, Any] | None = None) -> Dict[str, Any]:
