@@ -129,6 +129,14 @@ class BimanualTeleopWithInference:
         print(f"Using device: {self.device}")
         
         self.model = ACTPolicy.from_pretrained(pretrained_name_or_path=model_path)
+        
+        #Faster actions test
+        self.model.config.temporal_ensemble_coeff = None
+        self.model.config.n_action_steps = 30
+        
+        #Chunk size test
+        # model_inference.config.chunk_size = 30
+        # model_inference.config.n_action_steps = 30
         print("Model loaded successfully!")
         
         # Load dataset metadata for preprocessing
@@ -421,6 +429,16 @@ def main():
     controller = None
     
     try:
+        # # DEBUGGING
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # model_path = "/root/.cache/huggingface/lerobot/single_arm_kl_10/pretrained_model"
+        # #model_path = "/root/.cache/huggingface/lerobot/single_arm_chunk_30/pretrained_model"
+
+        # model = ACTPolicy.from_pretrained(pretrained_name_or_path=model_path)
+        # model.config.temporal_ensemble_coeff = None
+        # model.config.n_action_steps = 20
+        # print("Model loaded successfully!")
+
         # Check CAN interfaces
         print("Checking CAN interfaces...")
         check_all_can_interfaces()
@@ -446,9 +464,12 @@ def main():
         time.sleep(3)
         
         # Setup controller with inference
-        model_path = "/root/.cache/huggingface/lerobot/cups_to_plate_model"
-        dataset_id = "zetanschy/train_merged_v2"
+        # model_path = "/root/.cache/huggingface/lerobot/single_arm_kl_10/pretrained_model"
+        model_path = "/root/.cache/huggingface/lerobot/single_arm_chunk_30/pretrained_model"
+
+        dataset_id = "cups_to_plate/20251024-160232"
         
+
         controller = BimanualTeleopWithInference(
             model_path=model_path,
             dataset_id=dataset_id,
