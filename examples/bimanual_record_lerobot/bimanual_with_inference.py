@@ -14,8 +14,6 @@ from lerobot.policies.factory import make_pre_post_processors
 from lerobot.policies.utils import build_inference_frame, make_robot_action
 
 import sys
-sys.path.insert(0, "/home/i2rt/dev/robot-os/thirdparty/i2rt")
-
 from i2rt.robots.get_robot import get_yam_robot
 from i2rt.robots.utils import GripperType
 from config import I2RTFollowerConfig
@@ -146,7 +144,7 @@ class BimanualTeleopWithInference:
         FPS = 30
         EPISODE_TIME_SEC = 60
         TASK_DESCRIPTION = "Put cups on plate"
-        dataset_id = "cups_to_plate/20251022-230112"
+        dataset_id = "cups_to_plate/final_merged"
 
         print(f"Loading dataset metadata from: {dataset_id}")
         self.dataset_metadata = LeRobotDatasetMetadata(dataset_id)

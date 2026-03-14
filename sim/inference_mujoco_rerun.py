@@ -31,8 +31,8 @@ def log_actions_two_plots(u_pred: np.ndarray, u_gt: np.ndarray):
     u_gt   = np.asarray(u_gt,   dtype=np.float32).reshape(-1)
     n = min(len(u_pred), len(u_gt))
     for i in range(n):
-        rr.log(f"gt/j{i}",   rr.Scalars([float(u_gt[i])]))
-        rr.log(f"pred/j{i}", rr.Scalars([float(u_pred[i])]))
+        rr.log(f"gt/j{i}",   rr.Scalar(float(u_gt[i])))
+        rr.log(f"pred/j{i}", rr.Scalar(float(u_pred[i])))
 
 
 def main():
@@ -98,6 +98,7 @@ def main():
         n_steps = max(1, int(round((ts_next - ts) / sim_dt)))
 
         # Inference
+        a = time.time()
         with torch.no_grad():
             # print("sample:", sample)
             proc   = preprocess(sample)                           # dict with normalized tensors
@@ -106,6 +107,7 @@ def main():
             action = model_inference.select_action(proc)          # model output (normalized space)
             action = postprocess(action)                          # back to dataset space
             action = make_robot_action(action, dataset_metadata.features)
+        print(time.time()-a)
         
         # Build arrays
         u_pred = np.array(list(action.values()), dtype=np.float32)
