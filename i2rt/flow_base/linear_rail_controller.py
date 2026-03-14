@@ -5,7 +5,11 @@ import time
 from typing import Any, Dict
 
 import numpy as np
-from RPi import GPIO
+try:
+    from RPi import GPIO
+except ImportError:
+    GPIO = None  # type: ignore
+    print("GPIO not found, probably not on a Raspberry Pi")
 
 from i2rt.motor_drivers.dm_driver import DMChainCanInterface
 from i2rt.motor_drivers.utils import MotorInfo
