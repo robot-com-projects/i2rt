@@ -23,11 +23,6 @@ from dm_env.specs import Array
 from ruckig import ControlInterface, InputParameter, OutputParameter, Result, Ruckig
 from threadpoolctl import threadpool_limits
 
-from i2rt.flow_base.linear_rail_controller import (
-    LinearRailController,
-    SingleMotorControlInterface,
-    initialize_brake_gpio,
-)
 from i2rt.motor_drivers.dm_driver import ControlMode, DMChainCanInterface
 
 # Configure logging
@@ -273,6 +268,7 @@ class Vehicle(Robot):
         self.num_dofs = 3  # (x, y, theta)
         self.x = np.zeros(self.num_dofs)
         self.dx = np.zeros(self.num_dofs)
+        self.dx_local = np.zeros(self.num_dofs)  # body-frame velocity (vx, vy, vtheta)
 
         # C matrix relating operational space velocities to joint velocities
         self.C = np.zeros((num_motors, self.num_dofs))
@@ -362,6 +358,7 @@ class Vehicle(Robot):
                 ]
             )
             self.dx = R @ dx_local
+            self.dx_local = dx_local  # body-frame velocity (vx, vy, vtheta)
             self.x += self.dx * CONTROL_PERIOD
         time.sleep(0.0005)
 
@@ -492,12 +489,15 @@ class Vehicle(Robot):
             return {
                 "translation": self.x[:2],
                 "rotation": self.x[2],
+                "linear_velocity": self.dx_local[:2],  # body frame [vx, vy]
+                "angular_velocity": self.dx_local[2],  # body frame vtheta
             }
 
     def reset_odometry(self, input_dict: Dict[str, Any] | None = None) -> None:
         with self._lock:
             self.x = np.zeros(self.num_dofs)
             self.dx = np.zeros(self.num_dofs)
+            self.dx_local = np.zeros(self.num_dofs)
 
     def set_target_velocity(self, velocity: Any, frame: str = "local") -> None:
         self._enqueue_command(CommandType.VELOCITY, velocity, frame)
@@ -605,6 +605,8 @@ class LinearRailVehicle(Vehicle):
 
         # Initialize brake GPIO only if linear rail is enabled
         if enable_linear_rail:
+            from i2rt.flow_base.linear_rail_controller import initialize_brake_gpio
+
             initialize_brake_gpio()
 
         # Initialize vehicle base with the unified motor chain using super().__init__()
@@ -618,6 +620,11 @@ class LinearRailVehicle(Vehicle):
         # Initialize linear rail only if enabled
         self.linear_rail = None
         if enable_linear_rail:
+            from i2rt.flow_base.linear_rail_controller import (
+                LinearRailController,
+                SingleMotorControlInterface,
+            )
+
             # Create single motor control interface for the linear rail (9th motor, index 8)
             single_motor_interface = SingleMotorControlInterface.from_multi_motor_chain(
                 unified_motor_chain, target_motor_idx=8
