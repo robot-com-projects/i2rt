@@ -1,0 +1,22 @@
+[Unit]
+Description=FlowBase Controller Supervisor
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=i2rt
+Group=i2rt
+WorkingDirectory=/home/i2rt/JH_i2rt
+ExecStart=/bin/bash /home/i2rt/JH_i2rt/scripts/launch_flow_base_supervisor.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=HOME=/home/i2rt
+Environment=USER=i2rt
+
+[Install]
+WantedBy=multi-user.target
