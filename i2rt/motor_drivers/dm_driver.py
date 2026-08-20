@@ -165,7 +165,9 @@ class DMSingleMotorCanInterface(CanInterface):
             while int(motor_info.error_code, 16) != MotorErrorCode.normal:
                 logging.info(f"motor {motor_id} error: {motor_info.error_message}")
                 self.clean_error(motor_id=motor_id)
-                self.try_receive_message()
+                for _ in range(10):
+                    if self.try_receive_message(timeout=0.002) is None:
+                        break
                 logging.info(f"motor {motor_id} error cleaned")
                 # enable again
 
