@@ -731,18 +731,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable linear rail (use only 8 base motors)",
     )
+    gamepad_active = True
 
     # Initialize pygame and joystick
     pygame.init()
     pygame.joystick.init()
     if pygame.joystick.get_count() == 0:
         print("No joystick/gamepad connected!")
-        exit()
+        gamepad_active = False
 
-    joy = pygame.joystick.Joystick(0)
-    CALIBRATION_RETRY_DELAY = 1
-    DEADZONE = 0.05  # Deadzone for base control (x, y, theta)
-    RAIL_DEADZONE = 0.15  # Larger deadzone for linear rail to prevent unwanted movement
+    if gamepad_active:
+        joy = pygame.joystick.Joystick(0)
+        CALIBRATION_RETRY_DELAY = 1
+        DEADZONE = 0.05  # Deadzone for base control (x, y, theta)
+        RAIL_DEADZONE = 0.15  # Larger deadzone for linear rail to prevent unwanted movement
     args = parser.parse_args()
 
     max_vel = np.array([0.8, 0.8, 3.0])
@@ -820,12 +822,13 @@ if __name__ == "__main__":
 
     server.start(block=False)
 
-    print(f"Joystick Name: {joy.get_name()}")
-    print(f"Number of Axes: {joy.get_numaxes()}")
-    print(f"Number of Buttons: {joy.get_numbuttons()}")
+    if gamepad_active:
+        print(f"Joystick Name: {joy.get_name()}")
+        print(f"Number of Axes: {joy.get_numaxes()}")
+        print(f"Number of Buttons: {joy.get_numbuttons()}")
 
     # Check all x, y, th are 0 at the beginning, if not ask user to check joystick
-    while True:
+    while gamepad_active:
         # Pump events to update joystick state
         pygame.event.pump()
         four_axis = [joy.get_axis(1), joy.get_axis(0), joy.get_axis(2), joy.get_axis(3)]
@@ -837,39 +840,43 @@ if __name__ == "__main__":
             logger.warning("Joystick's rest position is not at the center, please check joystick")
             time.sleep(CALIBRATION_RETRY_DELAY)
 
-    # Main loop to read joystick inputs
-    gamepad = Gamepad()
+    if gamepad_active:
+        # Main loop to read joystick inputs
+        gamepad = Gamepad()
     gamepad_command_frame = "local"
     gamepad_command_override = True
 
-    last_gampad_mode_togged = False
+    last_gamepad_mode_toggled = False
     count = 0
     last_rail_log_time = time.time()
     RAIL_LOG_INTERVAL = 1.0  # Log linear rail position every 1 second
     try:
         while True:
-            gamepad_cmd = gamepad.get_user_cmd()  # 3D: [x, y, theta]
-            gamepad_button = gamepad.get_button_reading()
+            if gamepad_active:
+                gamepad_cmd = gamepad.get_user_cmd()  # 3D: [x, y, theta]
+                gamepad_button = gamepad.get_button_reading()
 
-            if gamepad_button["key_mode"] and not last_gampad_mode_togged:
-                last_gampad_mode_togged = True
-                gamepad_command_frame = "global" if gamepad_command_frame == "local" else "local"
+                if gamepad_button["key_mode"] and not last_gamepad_mode_toggled:
+                    last_gamepad_mode_toggled = True
+                    gamepad_command_frame = "global" if gamepad_command_frame == "local" else "local"
+                else:
+                    last_gamepad_mode_toggled = False
+
+                # Handle reset odometry (key_left_1)
+                if gamepad_button["key_left_1"]:
+                    vehicle.reset_odometry()
+
+                lift_vel = 0.0
+                if joy.get_numaxes() > 3:
+                    right_stick_y = joy.get_axis(3)  # Right stick Y-axis
+                    # Apply larger deadzone for linear rail to prevent unwanted movement
+                    # Invert: up (negative axis value) = positive velocity
+                    if np.abs(right_stick_y) > RAIL_DEADZONE:
+                        lift_vel = -right_stick_y  # Invert: up (negative axis) = positive velocity
+
+                cmd_4d = np.append(gamepad_cmd, lift_vel)
             else:
-                last_gampad_mode_togged = False
-
-            # Handle reset odometry (key_left_1)
-            if gamepad_button["key_left_1"]:
-                vehicle.reset_odometry()
-
-            lift_vel = 0.0
-            if joy.get_numaxes() > 3:
-                right_stick_y = joy.get_axis(3)  # Right stick Y-axis
-                # Apply larger deadzone for linear rail to prevent unwanted movement
-                # Invert: up (negative axis value) = positive velocity
-                if np.abs(right_stick_y) > RAIL_DEADZONE:
-                    lift_vel = -right_stick_y  # Invert: up (negative axis) = positive velocity
-
-            cmd_4d = np.append(gamepad_cmd, lift_vel)
+                cmd_4d = np.zeros(4)
 
             is_remote_command_valid = remote_command.is_command_valid()
 
@@ -877,7 +884,7 @@ if __name__ == "__main__":
                 user_cmd, user_frame = remote_command.get_command()
                 gamepad_command_override = False
 
-                if gamepad_button["key_left_2"]:
+                if gamepad_active and gamepad_button["key_left_2"]:
                     gamepad_command_override = True
             else:
                 gamepad_command_override = True
